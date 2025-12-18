@@ -15,11 +15,15 @@ namespace DrinkShop
         // 购物车列表
         private BindingList<CartItem> shoppingCart = new BindingList<CartItem>();
         private string currentUserPhone;
+        private string currentUserName;
 
         public Order(string phone)
         {
             InitializeComponent();
             currentUserPhone = phone;
+
+            // 获取用户姓名
+            GetUserName(phone);
 
             // 初始化购物车绑定
             InitializeCartBinding();
@@ -29,11 +33,26 @@ namespace DrinkShop
             LoadDrinkTypes();
         }
 
+        private void GetUserName(string phone)
+        {
+            try
+            {
+                DBhelper db = new DBhelper();
+                // 这里需要添加一个获取用户姓名的方法
+                // 暂时先显示手机号
+                label4.Text = $"用户：{phone}";
+            }
+            catch
+            {
+                label4.Text = $"用户：{phone}";
+            }
+        }
+
         private void InitializeCartBinding()
         {
             // 绑定购物车到ListBox
             listBox1.DataSource = shoppingCart;
-            listBox1.DisplayMember = "Name";
+            listBox1.DisplayMember = "DisplayText";
             listBox1.ValueMember = "DrinkId";
         }
 
@@ -46,6 +65,9 @@ namespace DrinkShop
             // 设置DataGridView选择模式
             dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridView1.MultiSelect = false;
+            dataGridView1.ReadOnly = true;
+            dataGridView1.AllowUserToAddRows = false;
+            dataGridView1.AllowUserToDeleteRows = false;
 
             // 设置ListBox选择模式
             listBox1.SelectionMode = SelectionMode.One;
@@ -208,21 +230,21 @@ namespace DrinkShop
             CartItem selectedItem = listBox1.SelectedItem as CartItem;
             if (selectedItem == null) return;
 
-            // 弹出对话框输入新数量
-            using (QuantityForm qtyForm = new QuantityForm(selectedItem.Quantity))
+            // 检查当前库存
+            DBhelper db = new DBhelper();
+            DataTable drinks = db.GetDrinks();
+            var row = drinks.Select($"饮品ID = {selectedItem.DrinkId}").FirstOrDefault();
+
+            if (row != null)
             {
-                if (qtyForm.ShowDialog() == DialogResult.OK)
+                int stock = Convert.ToInt32(row["库存"]);
+
+                // 弹出对话框输入新数量
+                using (QuantityForm qtyForm = new QuantityForm(selectedItem.Quantity, stock))
                 {
-                    int newQuantity = qtyForm.Quantity;
-
-                    // 检查库存
-                    DBhelper db = new DBhelper();
-                    DataTable drinks = db.GetDrinks();
-                    var row = drinks.Select($"饮品ID = {selectedItem.DrinkId}").FirstOrDefault();
-
-                    if (row != null)
+                    if (qtyForm.ShowDialog() == DialogResult.OK)
                     {
-                        int stock = Convert.ToInt32(row["库存"]);
+                        int newQuantity = qtyForm.Quantity;
 
                         if (newQuantity > stock)
                         {
@@ -243,11 +265,13 @@ namespace DrinkShop
         private void UpdateTotalAmount()
         {
             decimal total = shoppingCart.Sum(item => item.Subtotal);
-            label2.Text = $"总计金额: {total:C}";
+            label2.Text = $"总计金额: ￥{total:F2}";
             label2.ForeColor = total > 0 ? Color.Red : Color.Black;
 
-            // 更新结算按钮状态
+            // 更新按钮状态
             button3.Enabled = shoppingCart.Count > 0;
+            button4.Enabled = listBox1.SelectedItem != null;
+            button6.Enabled = listBox1.SelectedItem != null;
         }
 
         // --- 功能 5: 结算下单 ---
@@ -265,9 +289,9 @@ namespace DrinkShop
             string orderDetails = "订单详情：\n\n";
             foreach (var item in shoppingCart)
             {
-                orderDetails += $"{item.Name} × {item.Quantity} = {item.Subtotal:C}\n";
+                orderDetails += $"{item.Name} × {item.Quantity} = ￥{item.Subtotal:F2}\n";
             }
-            orderDetails += $"\n总计: {totalAmount:C}";
+            orderDetails += $"\n总计: ￥{totalAmount:F2}";
 
             DialogResult result = MessageBox.Show(
                 $"{orderDetails}\n\n确认结算吗？",
