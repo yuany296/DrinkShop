@@ -84,7 +84,7 @@ namespace DrinkShop
                 using (OracleConnection conn = GetConnection())
                 {
                     conn.Open();
-                    string sql = @"INSERT INTO Users (phone, name, address, password) VALUES (:phone, :name, :address, :password)";
+                    string sql = "INSERT INTO Users (phone, name, address, password) VALUES (:phone, :name, :address, :password)";
                     using (OracleCommand cmd = new OracleCommand(sql, conn))
                     {
                         cmd.BindByName = true;
@@ -148,7 +148,6 @@ namespace DrinkShop
         }
 
         // 获取对应type的Drinks
-        // 获取饮品列表
         public DataTable GetDrinks(string drinkType = "全部")
         {
             DataTable dt = new DataTable();
@@ -265,7 +264,7 @@ namespace DrinkShop
                         }
 
                         transaction.Commit();
-                        return (true, $"订单 {newOrderId} 下单成功！");
+                        return (true, $"下单成功！");
                     }
                     catch (Exception ex)
                     {
@@ -276,7 +275,6 @@ namespace DrinkShop
             }
         }
 
-        // 获取历史订单
         // 获取历史订单（包含饮品信息）
         public DataTable GetOrderHistory(string phone)
         {
@@ -290,7 +288,6 @@ namespace DrinkShop
                     // 使用XMLAGG来拼接订单详情，避免字符串长度限制
                     string sql = @"
                 SELECT 
-                    o.order_id AS OrderID,
                     TO_CHAR(o.order_time, 'YYYY-MM-DD HH24:MI:SS') AS OrderTime,
                     o.total_amount AS TotalAmount,
                     RTRIM(XMLAGG(XMLELEMENT(e, d.name || '×' || c.quantity, ', ') 
@@ -320,7 +317,6 @@ namespace DrinkShop
                         dt = new DataTable(); // 重新初始化
                         string sql2 = @"
                     SELECT 
-                        o.order_id AS OrderID,
                         TO_CHAR(o.order_time, 'YYYY-MM-DD HH24:MI:SS') AS OrderTime,
                         o.total_amount AS TotalAmount,
                         LISTAGG(d.name || '×' || c.quantity, ', ') WITHIN GROUP (ORDER BY d.name) AS Items
@@ -346,7 +342,6 @@ namespace DrinkShop
                         dt = new DataTable();
                         string sql3 = @"
                     SELECT 
-                        o.order_id AS OrderID,
                         TO_CHAR(o.order_time, 'YYYY-MM-DD HH24:MI:SS') AS OrderTime,
                         o.total_amount AS TotalAmount,
                         (SELECT COUNT(*) FROM Contains c2 WHERE c2.order_id = o.order_id) AS ItemCount
@@ -367,98 +362,262 @@ namespace DrinkShop
             }
             return dt;
         }
-        // 获取订单详情
-        public DataTable GetOrderDetails(int orderId)
+
+        // 根据手机号获取用户姓名
+        public string GetName(string phone)
         {
-            DataTable dt = new DataTable();
-            using (OracleConnection conn = GetConnection())
+            try
             {
-                try
+                using (OracleConnection conn = GetConnection())
                 {
                     conn.Open();
-                    string sql = @"
-                SELECT 
-                    d.name AS 饮品名称,
-                    c.quantity AS 数量,
-                    d.price AS 单价,
-                    (c.quantity * d.price) AS 小计
-                FROM Contains c
-                JOIN Drinks d ON c.drink_id = d.drink_id
-                WHERE c.order_id = :order_id
-                ORDER BY d.name";
+                    string sql = "SELECT name FROM Users WHERE phone = :phone";
 
                     using (OracleCommand cmd = new OracleCommand(sql, conn))
                     {
                         cmd.BindByName = true;
-                        cmd.Parameters.Add("order_id", OracleDbType.Int32).Value = orderId;
+                        cmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
 
-                        using (OracleDataAdapter adapter = new OracleDataAdapter(cmd))
+                        object result = cmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
                         {
-                            adapter.Fill(dt);
+                            return result.ToString();
+                        }
+                        else
+                        {
+                            return "用户不存在";
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"获取订单详情失败: {ex.Message}", "错误",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
-            return dt;
+            catch (Exception ex)
+            {
+                // 可以选择记录日志
+                return $"获取姓名失败: {ex.Message}";
+            }
         }
 
-        // 获取订单详情（字符串格式，方便直接显示）
-        public string GetOrderDetailsAsString(int orderId)
+        // 获取用户详细信息
+        public UserInfo GetUserDetail(string phone)
         {
-            string details = "";
-            decimal total = 0;
+            var userInfo = new UserInfo { Phone = phone };
 
-            using (OracleConnection conn = GetConnection())
+            try
             {
-                try
+                using (OracleConnection conn = GetConnection())
                 {
                     conn.Open();
-                    string sql = @"
-                SELECT 
-                    d.name,
-                    c.quantity,
-                    d.price,
-                    (c.quantity * d.price) AS subtotal
-                FROM Contains c
-                JOIN Drinks d ON c.drink_id = d.drink_id
-                WHERE c.order_id = :order_id
-                ORDER BY d.name";
 
-                    using (OracleCommand cmd = new OracleCommand(sql, conn))
+                    // 1. 获取用户基本信息
+                    string userSql = @"
+                SELECT name, address 
+                FROM Users 
+                WHERE phone = :phone";
+
+                    using (OracleCommand cmd = new OracleCommand(userSql, conn))
                     {
                         cmd.BindByName = true;
-                        cmd.Parameters.Add("order_id", OracleDbType.Int32).Value = orderId;
+                        cmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
 
                         using (OracleDataReader reader = cmd.ExecuteReader())
                         {
-                            details = $"订单 {orderId} 详情：\n\n";
-
-                            while (reader.Read())
+                            if (reader.Read())
                             {
-                                string drinkName = reader.GetString(0);
-                                int quantity = reader.GetInt32(1);
-                                decimal price = reader.GetDecimal(2);
-                                decimal subtotal = reader.GetDecimal(3);
-
-                                details += $"{drinkName} × {quantity} = {subtotal:C2}\n";
-                                total += subtotal;
+                                userInfo.Name = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                                userInfo.Address = reader.IsDBNull(1) ? "" : reader.GetString(1);
                             }
+                        }
+                    }
 
-                            details += $"\n订单总额: {total:C2}";
+                    // 2. 获取用户订单统计
+                    string statsSql = @"
+                SELECT 
+                    COUNT(*) as order_count,
+                    COALESCE(SUM(total_amount), 0) as total_amount
+                FROM Orders 
+                WHERE phone = :phone";
+
+                    using (OracleCommand cmd = new OracleCommand(statsSql, conn))
+                    {
+                        cmd.BindByName = true;
+                        cmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+
+                        using (OracleDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                userInfo.OrderCount = reader.GetInt32(0);
+                                userInfo.TotalAmount = reader.GetDecimal(1);
+                            }
                         }
                     }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"获取用户信息失败: {ex.Message}", "错误",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return userInfo;
+        }
+
+        // 修改用户信息（姓名和地址）
+        public (bool Success, string Message) UpdateUserInfo(string phone, string name, string address)
+        {
+            try
+            {
+                using (OracleConnection conn = GetConnection())
                 {
-                    return $"获取订单详情失败: {ex.Message}";
+                    conn.Open();
+                    string sql = @"
+                UPDATE Users 
+                SET name = :name, 
+                    address = :address
+                WHERE phone = :phone";
+
+                    using (OracleCommand cmd = new OracleCommand(sql, conn))
+                    {
+                        cmd.BindByName = true;
+                        cmd.Parameters.Add("name", OracleDbType.Varchar2, 30).Value = name;
+                        cmd.Parameters.Add("address", OracleDbType.Varchar2, 50).Value =
+                            string.IsNullOrWhiteSpace(address) ? (object)DBNull.Value : address;
+                        cmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+
+                        int rows = cmd.ExecuteNonQuery();
+                        return (rows > 0, rows > 0 ? "个人信息修改成功" : "修改失败，用户不存在");
+                    }
                 }
             }
-            return details;
+            catch (Exception ex)
+            {
+                return (false, $"修改失败: {ex.Message}");
+            }
+        }
+
+        // 修改密码
+        public (bool Success, string Message) ChangePassword(string phone, string oldPassword, string newPassword)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(newPassword))
+                {
+                    return (false, "新密码不能为空");
+                }
+
+                using (OracleConnection conn = GetConnection())
+                {
+                    conn.Open();
+
+                    // 1. 验证旧密码
+                    string checkSql = "SELECT COUNT(*) FROM Users WHERE phone = :phone AND password = :oldPassword";
+                    using (OracleCommand checkCmd = new OracleCommand(checkSql, conn))
+                    {
+                        checkCmd.BindByName = true;
+                        checkCmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+                        checkCmd.Parameters.Add("oldPassword", OracleDbType.Varchar2, 50).Value = oldPassword;
+
+                        int count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                        if (count == 0)
+                        {
+                            return (false, "旧密码错误");
+                        }
+                    }
+
+                    // 2. 更新密码
+                    string updateSql = "UPDATE Users SET password = :newPassword WHERE phone = :phone";
+                    using (OracleCommand updateCmd = new OracleCommand(updateSql, conn))
+                    {
+                        updateCmd.BindByName = true;
+                        updateCmd.Parameters.Add("newPassword", OracleDbType.Varchar2, 50).Value = newPassword;
+                        updateCmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+
+                        int rows = updateCmd.ExecuteNonQuery();
+                        return (rows > 0, rows > 0 ? "密码修改成功" : "密码修改失败");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"修改密码失败: {ex.Message}");
+            }
+        }
+
+        // 注销用户（删除账号）
+        public (bool Success, string Message) DeleteUser(string phone, string password)
+        {
+            using (OracleConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (OracleTransaction transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. 验证密码
+                        string checkSql = "SELECT COUNT(*) FROM Users WHERE phone = :phone AND password = :password";
+                        using (OracleCommand checkCmd = new OracleCommand(checkSql, conn))
+                        {
+                            checkCmd.Transaction = transaction;
+                            checkCmd.BindByName = true;
+                            checkCmd.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+                            checkCmd.Parameters.Add("password", OracleDbType.Varchar2, 50).Value = password;
+
+                            int count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                            if (count == 0)
+                            {
+                                transaction.Rollback();
+                                return (false, "密码错误，无法注销");
+                            }
+                        }
+
+                        // 2. 先删除订单详情（由于外键约束）
+                        string deleteContainsSql = @"
+                    DELETE FROM Contains 
+                    WHERE order_id IN (SELECT order_id FROM Orders WHERE phone = :phone)";
+                        using (OracleCommand cmd1 = new OracleCommand(deleteContainsSql, conn))
+                        {
+                            cmd1.Transaction = transaction;
+                            cmd1.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+                            cmd1.ExecuteNonQuery();
+                        }
+
+                        // 3. 删除订单
+                        string deleteOrdersSql = "DELETE FROM Orders WHERE phone = :phone";
+                        using (OracleCommand cmd2 = new OracleCommand(deleteOrdersSql, conn))
+                        {
+                            cmd2.Transaction = transaction;
+                            cmd2.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+                            cmd2.ExecuteNonQuery();
+                        }
+
+                        // 4. 最后删除用户
+                        string deleteUserSql = "DELETE FROM Users WHERE phone = :phone";
+                        using (OracleCommand cmd3 = new OracleCommand(deleteUserSql, conn))
+                        {
+                            cmd3.Transaction = transaction;
+                            cmd3.Parameters.Add("phone", OracleDbType.Varchar2, 11).Value = phone;
+                            int rows = cmd3.ExecuteNonQuery();
+
+                            if (rows > 0)
+                            {
+                                transaction.Commit();
+                                return (true, "账号注销成功");
+                            }
+                            else
+                            {
+                                transaction.Rollback();
+                                return (false, "注销失败");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        return (false, $"注销失败: {ex.Message}");
+                    }
+                }
+            }
         }
     }
 }

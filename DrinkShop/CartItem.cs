@@ -1,50 +1,52 @@
 ﻿using System.ComponentModel;
-
-public class CartItem : INotifyPropertyChanged
+namespace DrinkShop
 {
-    private int _drinkId;
-    private string _name;
-    private decimal _price;
-    private int _quantity;
-
-    public int DrinkId
+    public class CartItem : INotifyPropertyChanged
     {
-        get => _drinkId;
-        set { _drinkId = value; OnPropertyChanged(); }
-    }
+        private int _drinkId;
+        private string _name;
+        private decimal _price;
+        private int _quantity;
 
-    public string Name
-    {
-        get => _name;
-        set { _name = value; OnPropertyChanged(); }
-    }
+        public int DrinkId
+        {
+            get => _drinkId;
+            set { _drinkId = value; OnPropertyChanged(); }
+        }
 
-    public decimal Price
-    {
-        get => _price;
-        set { _price = value; OnPropertyChanged(); }
-    }
+        public string Name
+        {
+            get => _name;
+            set { _name = value; OnPropertyChanged(); }
+        }
 
-    public int Quantity
-    {
-        get => _quantity;
-        set { _quantity = value; OnPropertyChanged(); OnPropertyChanged(nameof(Subtotal)); OnPropertyChanged(nameof(DisplayText)); }
-    }
+        public decimal Price
+        {
+            get => _price;
+            set { _price = value; OnPropertyChanged(); }
+        }
 
-    public decimal Subtotal => Price * Quantity;
+        public int Quantity
+        {
+            get => _quantity;
+            set { _quantity = value; OnPropertyChanged(); OnPropertyChanged(nameof(Subtotal)); OnPropertyChanged(nameof(DisplayText)); }
+        }
 
-    // 添加DisplayText属性用于显示
-    public string DisplayText => $"{Name} × {Quantity} = ￥{Subtotal:F2}";
+        public decimal Subtotal => Price * Quantity;
 
-    public event PropertyChangedEventHandler PropertyChanged;
+        // 添加DisplayText属性用于显示
+        public string DisplayText => $"{Name} × {Quantity} = ￥{Subtotal:F2}";
 
-    protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+        public event PropertyChangedEventHandler PropertyChanged;
 
-    public override string ToString()
-    {
-        return DisplayText;
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public override string ToString()
+        {
+            return DisplayText;
+        }
     }
 }

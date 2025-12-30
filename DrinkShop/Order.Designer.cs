@@ -44,6 +44,7 @@
             button5 = new Button();
             button6 = new Button();
             button7 = new Button();
+            button8 = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDown1).BeginInit();
             SuspendLayout();
@@ -62,7 +63,7 @@
             // 
             button1.BackColor = Color.LightSkyBlue;
             button1.Font = new Font("Microsoft Sans Serif", 9F);
-            button1.Location = new Point(217, 37);
+            button1.Location = new Point(911, 37);
             button1.Name = "button1";
             button1.Size = new Size(129, 29);
             button1.TabIndex = 4;
@@ -220,7 +221,7 @@
             // 
             button7.BackColor = Color.LightGray;
             button7.Font = new Font("Microsoft Sans Serif", 9F);
-            button7.Location = new Point(410, 37);
+            button7.Location = new Point(1066, 37);
             button7.Name = "button7";
             button7.Size = new Size(94, 29);
             button7.TabIndex = 5;
@@ -228,12 +229,23 @@
             button7.UseVisualStyleBackColor = false;
             button7.Click += button7_Click;
             // 
+            // button8
+            // 
+            button8.Location = new Point(772, 37);
+            button8.Name = "button8";
+            button8.Size = new Size(94, 29);
+            button8.TabIndex = 11;
+            button8.Text = "用户中心";
+            button8.UseVisualStyleBackColor = true;
+            button8.Click += button8_Click;
+            // 
             // Order
             // 
             AutoScaleDimensions = new SizeF(11F, 24F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.AliceBlue;
             ClientSize = new Size(1205, 580);
+            Controls.Add(button8);
             Controls.Add(button7);
             Controls.Add(button6);
             Controls.Add(button5);
@@ -276,5 +288,6 @@
         private Button button5;
         private Button button6;
         private Button button7;
+        private Button button8;
     }
 }

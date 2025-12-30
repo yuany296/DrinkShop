@@ -38,9 +38,8 @@ namespace DrinkShop
             try
             {
                 DBhelper db = new DBhelper();
-                // 这里需要添加一个获取用户姓名的方法
-                // 暂时先显示手机号
-                label4.Text = $"用户：{phone}";
+                string name = db.GetName(phone);
+                label4.Text = $"用户：{name}";
             }
             catch
             {
@@ -154,8 +153,6 @@ namespace DrinkShop
                 }
 
                 UpdateTotalAmount();
-                MessageBox.Show($"已成功添加 {name} × {quantity} 到购物车", "成功",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -336,10 +333,9 @@ namespace DrinkShop
 
             if (result == DialogResult.Yes)
             {
-                this.Close();
-                // 重新显示登录界面
-                login loginForm = new login();
-                loginForm.Show();
+                // 重启应用程序，回到登录界面
+                Application.Restart();
+                Environment.Exit(0);
             }
         }
 
@@ -379,22 +375,31 @@ namespace DrinkShop
 
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            // 留空
         }
 
         private void label2_Click(object sender, EventArgs e)
         {
-            // 留空
         }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
-            // 留空
         }
 
         private void label1_Click(object sender, EventArgs e)
         {
-            // 留空
+        }
+
+        // 更新名字
+        private void button8_Click(object sender, EventArgs e)
+        {
+            UserCenterForm userCenterForm = new UserCenterForm(currentUserPhone);
+
+            // 使用ShowDialog并检查返回值
+            if (userCenterForm.ShowDialog() == DialogResult.OK)
+            {
+                // 重新获取用户姓名
+                GetUserName(currentUserPhone);
+            }
         }
     }
 }
